@@ -34,6 +34,21 @@ static struct pseudodesc idt_pd = {
 /* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
 void
 idt_init(void) {
+	extern uintptr_t __vectors[]; //中断向量表指针
+	int i;
+	for(i = 0; i < 256; i++)
+	{
+		if(i < IRQ_OFFSET)//对于编号小于IRQ的视为中断，其它视为异常
+		{
+			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],3); //设置段地址为为内核代码段的段号，还有系统处理程序的入口地址
+		}
+		else
+		{
+			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 3);
+		}
+	}
+	SETGATE(idt[0x80], 0, GD_KTEXT, __vectors[0x80],0);//设置系统中断调用int 0x80权限为用户权限
+	lidt(&idt_pd);
      /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
       *     All ISR's entry addrs are stored in __vectors. where is uintptr_t __vectors[] ?
@@ -141,6 +156,10 @@ trap_dispatch(struct trapframe *tf) {
 
     switch (tf->tf_trapno) {
     case IRQ_OFFSET + IRQ_TIMER:
+    	ticks ++;
+    	if(ticks % 100 == 0)
+    		print_ticks();
+
         /* LAB1 YOUR CODE : STEP 3 */
         /* handle the timer interrupt */
         /* (1) After a timer interrupt, you should record this event using a global variable (increase it), such as ticks in kern/driver/clock.c

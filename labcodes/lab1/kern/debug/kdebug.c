@@ -290,6 +290,43 @@ read_eip(void) {
  * */
 void
 print_stackframe(void) {
+	uint32_t ebp = read_ebp(); //读取两个寄存器
+	uint32_t eip = read_eip();
+	int i;
+	for(i = 0; i < STACKFRAME_DEPTH; i++)//直到栈底
+	{
+		cprintf("ebp = 0x%x ",ebp);
+<<<<<<< Local Changes
+<<<<<<< Local Changes
+<<<<<<< Local Changes
+		cprintf("eip = 0x%x\n", eip);//输出当前函数块栈指针和ebp返回地址
+=======
+		cprintf("eip = 0x%x ", eip);
+>>>>>>> External Changes
+=======
+		cprintf("eip = 0x%x ", eip);
+>>>>>>> External Changes
+=======
+		cprintf("eip = 0x%x ", eip);
+>>>>>>> External Changes
+		int j;
+<<<<<<< Local Changes
+		for(j = 0; j < 4; j++)//打印函数的四个参数
+			cprintf("arg %d:0x%x ", j, *((uint32_t* )ebp) +2+j);
+=======
+		for(j = 0; j < 4; j++)
+<<<<<<< Local Changes
+			cprintf("arg%d:0x%x ", j, *((uint32_t* )ebp) +2+j);
+>>>>>>> External Changes
+=======
+			cprintf("arg%d:0x%x ", j, *((uint32_t* )ebp) +2+j);
+>>>>>>> External Changes
+		cprintf("\n");
+		print_debuginfo(eip-1);//打印函数名和汇编代码所在位置
+		ebp = *((uint32_t* )ebp);//将ebp转为调用函数ebp
+		eip = *((uint32_t* )ebp+1);//将返回地址指针更新为调用函数的返回地址（存储于ebp+1处）
+
+	}
      /* LAB1 YOUR CODE : STEP 1 */
      /* (1) call read_ebp() to get the value of ebp. the type is (uint32_t);
       * (2) call read_eip() to get the value of eip. the type is (uint32_t);
