@@ -34,20 +34,20 @@ static struct pseudodesc idt_pd = {
 /* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
 void
 idt_init(void) {
-	extern uintptr_t __vectors[]; //中断向量表指针
+	extern uintptr_t __vectors[];
 	int i;
 	for(i = 0; i < 256; i++)
 	{
-		if(i < IRQ_OFFSET)//对于编号小于IRQ的视为中断，其它视为异常
+		if(i < IRQ_OFFSET)
 		{
-			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],3); //设置段地址为为内核代码段的段号，还有系统处理程序的入口地址
+			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],3);
 		}
 		else
 		{
 			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 3);
 		}
 	}
-	SETGATE(idt[0x80], 0, GD_KTEXT, __vectors[0x80],0);//设置系统中断调用int 0x80权限为用户权限
+	SETGATE(idt[0x80], 0, GD_KTEXT, __vectors[0x80],0);
 	lidt(&idt_pd);
      /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
