@@ -38,7 +38,7 @@ idt_init(void) {
 	int i;
 	for(i = 0; i < 256; i++)
 	{
-		if(i < IRQ_OFFSET)
+		if(i < IRQ_OFFSET)//32个陷阱门处理异常
 		{
 			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],3);
 		}

@@ -1,0 +1,100 @@
+(THU.CST) os is loading ...
+
+Special kernel symbols:
+  entry  0xc010002a (phys)
+  etext  0xc010606c (phys)
+  edata  0xc0117a36 (phys)
+  end    0xc0118968 (phys)
+Kernel executable memory footprint: 99KB
+ebp = 0xc0116f38 eip = 0xc01009d0
+arg 0:0xc0116f4a arg 1:0xc0116f4b arg 2:0xc0116f4c arg 3:0xc0116f4d 
+    kern/debug/kdebug.c:297: print_stackframe+21
+ebp = 0xc0116f48 eip = 0xc01000bc
+arg 0:0xc0116f6a arg 1:0xc0116f6b arg 2:0xc0116f6c arg 3:0xc0116f6d 
+    kern/init/init.c:49: grade_backtrace2+33
+ebp = 0xc0116f68 eip = 0xc01000e5
+arg 0:0xc0116f8a arg 1:0xc0116f8b arg 2:0xc0116f8c arg 3:0xc0116f8d 
+    kern/init/init.c:54: grade_backtrace1+38
+ebp = 0xc0116f88 eip = 0xc0100103
+arg 0:0xc0116faa arg 1:0xc0116fab arg 2:0xc0116fac arg 3:0xc0116fad 
+    kern/init/init.c:59: grade_backtrace0+23
+ebp = 0xc0116fa8 eip = 0xc0100128
+arg 0:0xc0116fca arg 1:0xc0116fcb arg 2:0xc0116fcc arg 3:0xc0116fcd 
+    kern/init/init.c:64: grade_backtrace+34
+ebp = 0xc0116fc8 eip = 0xc010007f
+arg 0:0xc0116ffa arg 1:0xc0116ffb arg 2:0xc0116ffc arg 3:0xc0116ffd 
+    kern/init/init.c:29: kern_init+84
+ebp = 0xc0116ff8 eip = 0xc0100028
+arg 0:0x2 arg 1:0x3 arg 2:0x4 arg 3:0x5 
+    kern/init/entry.S:27: <unknown>+0
+memory management: default_pmm_manager
+e820map:
+  memory: 0009fc00, [00000000, 0009fbff], type = 1.
+  memory: 00000400, [0009fc00, 0009ffff], type = 2.
+  memory: 00010000, [000f0000, 000fffff], type = 2.
+  memory: 07efe000, [00100000, 07ffdfff], type = 1.
+  memory: 00002000, [07ffe000, 07ffffff], type = 2.
+  memory: 00040000, [fffc0000, ffffffff], type = 2.
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b2b0 
+1 0xc011b274 
+free -----------
+1 0xc011b2b0 
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b29c 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+1 0xc011b29c 
+free -----------
+1 0xc011b29c 
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+1 0xc011b29c 
+free -----------
+1 0xc011b274 
+free -----------
+1 0xc011b274 
+check_alloc_page() succeeded!
+free -----------
+1 0xc011b2b0 
+free -----------
+1 0xc011b2b0 
+1 0xc011b288 
+free -----------
+1 0xc011b288 
+check_pgdir() succeeded!
+free -----------
+1 0xc011c430 
+1 0xc011c408 
+free -----------
+1 0xc011c408 
+check_boot_pgdir() succeeded!
+-------------------- BEGIN --------------------
+PDE(0e0) c0000000-f8000000 38000000 urw
+  |-- PTE(38000) c0000000-f8000000 38000000 -rw
+PDE(001) fac00000-fb000000 00400000 -rw
+  |-- PTE(000e0) faf00000-fafe0000 000e0000 urw
+  |-- PTE(00001) fafeb000-fafec000 00001000 -rw
+--------------------- END ---------------------
+++ setup timer interrupts
+100 ticks
+End of Test.
+kernel panic at kern/trap/trap.c:18:
+    EOT: kernel seems ok.
+Welcome to the kernel debug monitor!!
+Type 'help' for a list of commands.
+K> 
