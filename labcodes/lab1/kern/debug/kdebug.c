@@ -296,7 +296,7 @@ print_stackframe(void) {
 	for(i = 0; ebp != 0 && i < STACKFRAME_DEPTH; i++)
 	{
 		cprintf("ebp = 0x%x ",ebp);
-		cprintf("eip = 0x%x\n", eip);
+		cprintf("eip = 0x%x ", eip);
 		int j;
 		for(j = 0; j < 4; j++)
 			cprintf("arg %d:0x%x ", j, *((uint32_t* )ebp) +2+j);

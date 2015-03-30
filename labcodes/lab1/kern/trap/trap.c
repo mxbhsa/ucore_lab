@@ -40,14 +40,14 @@ idt_init(void) {
 	{
 		if(i < IRQ_OFFSET)//32个陷阱门处理异常
 		{
-			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],3);
+			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],0);
 		}
 		else
 		{
-			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 3);
+			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 0);
 		}
 	}
-	SETGATE(idt[0x80], 0, GD_KTEXT, __vectors[0x80],0);
+	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],3);
 	lidt(&idt_pd);
      /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
