@@ -47,7 +47,7 @@ idt_init(void) {
 			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 0);
 		}
 	}
-	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],3);
+	SETGATE(idt[T_SWITCH_TOK],1,KERNEL_CS,__vectors[T_SWITCH_TOK],3);
 	lidt(&idt_pd);
      /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
@@ -149,6 +149,9 @@ print_regs(struct pushregs *regs) {
     cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
+/* temporary trapframe or pointer to trapframe */
+struct trapframe switchk2u, *switchu2k;
+
 /* trap_dispatch - dispatch based on what type of trap occurred */
 static void
 trap_dispatch(struct trapframe *tf) {
@@ -175,11 +178,30 @@ trap_dispatch(struct trapframe *tf) {
         c = cons_getc();
         cprintf("kbd [%03d] %c\n", c, c);
         break;
-    //LAB1 CHALLENGE 1 : YOUR CODE you should modify below codes.
-    case T_SWITCH_TOU:
-    case T_SWITCH_TOK:
-        panic("T_SWITCH_** ??\n");
-        break;
+        //LAB1 CHALLENGE 1 : YOUR CODE you should modify below codes.
+		case T_SWITCH_TOU:
+			if (tf->tf_cs != USER_CS) {
+				//保存异常帧中的信息
+				switchk2u = *tf;
+				switchk2u.tf_cs = USER_CS;
+				switchk2u.tf_ds = switchk2u.tf_es = switchk2u.tf_ss = USER_DS;
+				switchk2u.tf_esp = (uint32_t)tf + sizeof(struct trapframe) - 8;
+				switchk2u.tf_eflags |= FL_IOPL_MASK;//设置IO权限为较低等级
+
+				*((uint32_t *)tf - 1) = (uint32_t)&switchk2u;
+			}
+			break;
+		case T_SWITCH_TOK:
+			if (tf->tf_cs != KERNEL_CS) {
+				//直接修改异常帧
+				tf->tf_cs = KERNEL_CS;
+				tf->tf_ds = tf->tf_es = KERNEL_DS;
+				tf->tf_eflags &= ~FL_IOPL_MASK;
+				switchu2k = (struct trapframe *)(tf->tf_esp - (sizeof(struct trapframe) - 8));
+				memmove(switchu2k, tf, sizeof(struct trapframe) - 8);
+				*((uint32_t *)tf - 1) = (uint32_t)switchu2k;
+			}
+			break;
     case IRQ_OFFSET + IRQ_IDE1:
     case IRQ_OFFSET + IRQ_IDE2:
         /* do nothing */
