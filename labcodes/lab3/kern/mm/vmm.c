@@ -308,7 +308,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     struct vma_struct *vma = find_vma(mm, addr);
 
     pgfault_num++;
-    //If the addr is in the range of a mm's vma?
+    //If the addr is in the range of a mm's vma? 检测查找结果
     if (vma == NULL || vma->vm_start > addr) {
         cprintf("not valid addr %x, and  can not find it in vma\n", addr);
         goto failed;
@@ -318,7 +318,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     default:
             /* error code flag : default is 3 ( W/R=1, P=1): write, present */
     case 2: /* error code flag : (W/R=1, P=0): write, not present */
-        if (!(vma->vm_flags & VM_WRITE)) {
+        if (!(vma->vm_flags & VM_WRITE)) {//不能写
             cprintf("do_pgfault failed: error code flag = write AND not present, but the addr's vma cannot write\n");
             goto failed;
         }
@@ -339,10 +339,10 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
      *    continue process
      */
     uint32_t perm = PTE_U;
-    if (vma->vm_flags & VM_WRITE) {
+    if (vma->vm_flags & VM_WRITE) {//
         perm |= PTE_W;
     }
-    addr = ROUNDDOWN(addr, PGSIZE);
+    addr = ROUNDDOWN(addr, PGSIZE); // 地址对齐PGSIZE=4096B
 
     ret = -E_NO_MEM;
 
@@ -364,6 +364,28 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
+    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针
+    if(ptep == NULL)
+    	goto failed;
+
+    if(*ptep == 0)//页表项为空，未分配页，不需替换
+    {
+    	if(pgdir_alloc_page(mm->pgdir, addr, perm) == NULL)
+    		goto failed;
+    }
+    else {//有页表
+        if(swap_init_ok) {//页替换工作完成
+            struct Page *page;
+            if ((swap_in(mm, addr, &page)) != 0) //将addr所在页从磁盘读至内存page中
+                goto failed;
+            page_insert(mm->pgdir, page, addr, perm);//完善page和addr的页表项
+            swap_map_swappable(mm, addr, page, 1); //设置替换相关（FIFO：加入替换链表）
+        }
+        else {
+            cprintf("no swap_init_ok but ptep is %x, failed22\n",*ptep);
+            goto failed;
+        }
+   }
 #if 0
     /*LAB3 EXERCISE 1: YOUR CODE*/
     ptep = ???              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.

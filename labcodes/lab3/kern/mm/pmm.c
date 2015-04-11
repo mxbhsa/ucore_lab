@@ -392,7 +392,32 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
                           // (7) set page directory entry's permission
     }
     return NULL;          // (8) return page table entry
-#endif
+#endif	//此函数创建一个二级页表项
+
+
+
+
+    pde_t *pdep = pgdir + PDX(la);   // (1) find page directory entry
+    int present = *pdep & PTE_P;
+    uintptr_t page_ptr;
+    if( ! present)//探测有无二级页表
+    {
+    	if(! create)
+    		return NULL;
+    	struct Page * page  = alloc_page();//分配一个二级页表（多个表项）
+	if(!page)
+		return NULL;
+    	set_page_ref(page,1); //设置有引用
+    	page_ptr = page2pa(page);//将页管理区域的偏移转换为地址偏移
+        memset(KADDR(page_ptr), 0, PGSIZE);
+        *pdep = page_ptr | PTE_U | PTE_W | PTE_P; //设置三个flag位为1 2级页表用户访问权限默认为1
+      //pdep为二级页表的入口
+    }
+    //先找到pdep中对应的物理地址的PDE，将其转换为虚地址，即得到了二级页表入口的虚地址
+    //若有二级页表，则直接将pdep（二级页表入口）转换得到页表入口虚地址
+
+    return  ((pte_t *) KADDR(PDE_ADDR(  *pdep)))+PTX(la);
+
 }
 
 //get_page - get related Page struct for linear address la using PDT pgdir
@@ -430,7 +455,7 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
 #if 0
-    if (0) {                      //(1) check if this page table entry is present
+    if (0) {                      //(1) check if page directory is present
         struct Page *page = NULL; //(2) find corresponding page to pte
                                   //(3) decrease page reference
                                   //(4) and free this page when page reference reachs 0
@@ -438,6 +463,14 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
                                   //(6) flush tlb
     }
 #endif
+	if(*ptep & PTE_P)//二级页表表项有效位测试
+	{
+			struct Page *page = pte2page(*ptep); //取得表项内容所对应的管理Page
+			if (!page_ref_dec(page) ) // 如果该页的引用为0则需要释放
+				free_page(page);
+			*ptep = 0;//清除二级页表
+			tlb_invalidate(pgdir, la);
+	}
 }
 
 //page_remove - free an Page which is related linear address la and has an validated pte
