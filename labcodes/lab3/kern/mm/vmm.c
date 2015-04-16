@@ -364,7 +364,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
-    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针
+    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针 mm为某个进程的页表
     if(ptep == NULL)
     	goto failed;
 
