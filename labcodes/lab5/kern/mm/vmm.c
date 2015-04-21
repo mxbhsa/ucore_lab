@@ -451,6 +451,27 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
+    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针 mm为某个进程的页表
+    if(ptep == NULL)
+    	goto failed;
+
+    if(*ptep == 0)//页表项为空，未分配页，不需替换
+    {
+    	if(pgdir_alloc_page(mm->pgdir, addr, perm) == NULL)
+    		goto failed;
+    }
+    else {//有页表
+        if(swap_init_ok) {//页替换工作完成
+            struct Page *page;
+            if ((swap_in(mm, addr, &page)) != 0) //将addr所在页从磁盘读至内存page中
+                goto failed;
+            page_insert(mm->pgdir, page, addr, perm);//完善page和addr的页表项
+            swap_map_swappable(mm, addr, page, 1); //设置替换相关（FIFO：加入替换链表）
+        }
+        else {
+            cprintf("no swap_init_ok but ptep is %x, failed22\n",*ptep);
+            goto failed;
+        }
 #if 0
     /*LAB3 EXERCISE 1: YOUR CODE*/
     ptep = ???              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.

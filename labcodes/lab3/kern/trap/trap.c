@@ -169,7 +169,6 @@ pgfault_handler(struct trapframe *tf) {
     extern struct mm_struct *check_mm_struct;
     print_pgfault(tf);
     if (check_mm_struct != NULL) {
-    	///cprintf("dddd\n");
         return do_pgfault(check_mm_struct, tf->tf_err, rcr2());
     }
     panic("unhandled page fault.\n");
@@ -193,7 +192,6 @@ trap_dispatch(struct trapframe *tf) {
         }
         break;
     case IRQ_OFFSET + IRQ_TIMER:
-
 	ticks ++;
     	if(ticks % 100 == 0)
     		print_ticks();

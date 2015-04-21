@@ -80,6 +80,7 @@ static int (*syscalls[])(uint32_t arg[]) = {
 
 void
 syscall(void) {
+    cprintf("##### 2syscall\n");
     struct trapframe *tf = current->tf;
     uint32_t arg[5];
     int num = tf->tf_regs.reg_eax;
@@ -91,6 +92,7 @@ syscall(void) {
             arg[3] = tf->tf_regs.reg_edi;
             arg[4] = tf->tf_regs.reg_esi;
             tf->tf_regs.reg_eax = syscalls[num](arg);
+            cprintf("##### syscall\n");
             return ;
         }
     }

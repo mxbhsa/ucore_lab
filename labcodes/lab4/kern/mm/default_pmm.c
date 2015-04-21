@@ -78,6 +78,11 @@ default_init_memmap(struct Page *base, size_t n) {
     SetPageProperty(base);
     nr_free += n;
     list_add(&free_list, &(base->page_link));
+    list_entry_t *le = &free_list;
+        while ((le = list_next(le)) != &free_list) {
+           struct Page *p = le2page(le, page_link);
+           cprintf("iiiiiiii %d \n",p->flags);
+        }
 }
 
 static struct Page *
@@ -95,13 +100,13 @@ default_alloc_pages(size_t n) {
             break;
         }
     }
-    if (page != NULL) {
+    if (page != NULL) { //找到了可以分配的页
         list_del(&(page->page_link));
         if (page->property > n) {
             struct Page *p = page + n;
             p->property = page->property - n;
             list_add(&free_list, &(p->page_link));
-    }
+    	}
         nr_free -= n;
         ClearPageProperty(page);
     }
@@ -113,30 +118,32 @@ default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
     for (; p != base + n; p ++) {
-        assert(!PageReserved(p) && !PageProperty(p));
+        assert(!PageReserved(p));
+ //       assert(!PageProperty(p));
         p->flags = 0;
         set_page_ref(p, 0);
     }
-    base->property = n;
-    SetPageProperty(base);
+    base->property = n;//设置空闲块大小为n
+    SetPageProperty(base);//property为置为1表明为空闲的
     list_entry_t *le = list_next(&free_list);
     while (le != &free_list) {
         p = le2page(le, page_link);
         le = list_next(le);
         if (base + base->property == p) {
             base->property += p->property;
-            ClearPageProperty(p);
+            SetPageProperty(p);
             list_del(&(p->page_link));
         }
         else if (p + p->property == base) {
             p->property += base->property;
-            ClearPageProperty(base);
+            SetPageProperty(base);
             base = p;
             list_del(&(p->page_link));
         }
     }
     nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    list_add_before(&free_list, &(base->page_link));
+
 }
 
 static size_t
@@ -209,7 +216,7 @@ default_check(void) {
     assert(total == nr_free_pages());
 
     basic_check();
-
+cprintf("2\n");
     struct Page *p0 = alloc_pages(5), *p1, *p2;
     assert(p0 != NULL);
     assert(!PageProperty(p0));
@@ -222,7 +229,9 @@ default_check(void) {
     unsigned int nr_free_store = nr_free;
     nr_free = 0;
 
+    cprintf("3\n");
     free_pages(p0 + 2, 3);
+    cprintf("3\n");
     assert(alloc_pages(4) == NULL);
     assert(PageProperty(p0 + 2) && p0[2].property == 3);
     assert((p1 = alloc_pages(3)) != NULL);

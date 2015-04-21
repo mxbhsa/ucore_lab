@@ -103,12 +103,18 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
-     //LAB5 YOUR CODE : (update LAB4 steps)
-    /*
-     * below fields(add in LAB5) in proc_struct need to be initialized	
-     *       uint32_t wait_state;                        // waiting state
-     *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
-	 */
+    proc->state = PROC_UNINIT;
+    proc->pid = -1;
+    proc->runs = 0;
+    proc->kstack = 0;
+    proc->need_resched = 0;
+    proc->parent = NULL;
+    proc->mm = NULL;
+    memset(&(proc->context),0,sizeof(proc->context));
+    proc->tf = NULL;
+    proc->cr3 = boot_cr3;
+    proc->flags = 0;
+    memset(proc->name,0,sizeof(char)*(PROC_NAME_LEN+1));
     }
     return proc;
 }
@@ -389,12 +395,25 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
      */
 
     //    1. call alloc_proc to allocate a proc_struct
+    if((proc = alloc_proc()) == NULL)
+    	goto fork_out;
+    proc->parent = current;
     //    2. call setup_kstack to allocate a kernel stack for child process
+    if(setup_kstack(proc) != 0)
+    		goto bad_fork_cleanup_kstack;
     //    3. call copy_mm to dup OR share mm according clone_flag
+    copy_mm(clone_flags,proc);
     //    4. call copy_thread to setup tf & context in proc_struct
+	copy_thread(proc,stack,tf);
     //    5. insert proc_struct into hash_list && proc_list
+	proc->pid = get_pid(); // get_pid需要在hash之前，是根据pid值进行hash的
+	hash_proc(proc);
+    list_add(&proc_list, &(proc->list_link));
+    nr_process ++;
     //    6. call wakup_proc to make the new child process RUNNABLE
+	wakeup_proc(proc);
     //    7. set ret vaule using child proc's pid
+	ret = proc->pid;
 
 	//LAB5 YOUR CODE : (update LAB4 steps)
    /* Some Functions
@@ -533,15 +552,17 @@ load_icode(unsigned char *binary, size_t size) {
         ret = -E_NO_MEM;
 
      //(3.6) alloc memory, and  copy the contents of every program section (from, from+end) to process's memory (la, la+end)
-        end = ph->p_va + ph->p_filesz;
+        end = ph->p_va + ph->p_filesz;//程序结束处虚地址
      //(3.6.1) copy TEXT/DATA section of bianry program
         while (start < end) {
-            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
+            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {//分配一个新的页
                 goto bad_cleanup_mmap;
             }
-            off = start - la, size = PGSIZE - off, la += PGSIZE;
-            if (end < la) {
-                size -= la - end;
+            off = start - la, //off是起始的页内偏移
+            size = PGSIZE - off, //size是页剩余（碎片1）
+			la += PGSIZE;//下一页的起始虚地址
+            if (end < la) {//程序能够容纳在这一页内
+                size -= la - end;//页剩余添加（碎片2）
             }
             memcpy(page2kva(page) + off, from, size);
             start += size, from += size;
@@ -573,7 +594,9 @@ load_icode(unsigned char *binary, size_t size) {
             memset(page2kva(page) + off, 0, size);
             start += size;
         }
-    }
+    }//对每个程序操作完成
+
+
     //(4) build user stack memory
     vm_flags = VM_READ | VM_WRITE | VM_STACK;
     if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
@@ -587,7 +610,7 @@ load_icode(unsigned char *binary, size_t size) {
     //(5) set current process's mm, sr3, and set CR3 reg = physical addr of Page Directory
     mm_count_inc(mm);
     current->mm = mm;
-    current->cr3 = PADDR(mm->pgdir);
+    current->cr3 = PADDR(mm->pgdir);//内核页目录表
     lcr3(PADDR(mm->pgdir));
 
     //(6) setup trapframe for user environment
@@ -602,6 +625,11 @@ load_icode(unsigned char *binary, size_t size) {
      *          tf_eip should be the entry point of this binary program (elf->e_entry)
      *          tf_eflags should be set to enable computer to produce Interrupt
      */
+    tf->tf_cs = USER_CS;
+    tf->tf_ds = tf->tf_es = tf->tf_ss = USER_DS;
+    tf->tf_esp = USTACKTOP;
+    tf->tf_eip = elf->e_entry;
+    tf->tf_eflags = FL_IF;
     ret = 0;
 out:
     return ret;

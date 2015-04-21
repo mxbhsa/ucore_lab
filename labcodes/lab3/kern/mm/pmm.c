@@ -392,11 +392,8 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
                           // (7) set page directory entry's permission
     }
     return NULL;          // (8) return page table entry
-#endif	//此函数创建一个二级页表项
-
-
-
-
+#endif
+    //此函数创建一个二级页表项
     pde_t *pdep = pgdir + PDX(la);   // (1) find page directory entry
     int present = *pdep & PTE_P;
     uintptr_t page_ptr;
