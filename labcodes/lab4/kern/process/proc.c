@@ -140,27 +140,30 @@ get_pid(void) {
     struct proc_struct *proc;
     list_entry_t *list = &proc_list, *le;
     static int next_safe = MAX_PID, last_pid = MAX_PID;
-    if (++ last_pid >= MAX_PID) {
+    //next_safe表示肯定能够使用的pid的最大值
+    //last_pid表示对应next_safe之前连续的空闲编号的最小值
+    if (++ last_pid >= MAX_PID) {//用完需要检查
         last_pid = 1;
         goto inside;
     }
-    if (last_pid >= next_safe) {
+    if (last_pid >= next_safe) {//此时会覆盖掉其他进程号
     inside:
         next_safe = MAX_PID;
     repeat:
         le = list;
-        while ((le = list_next(le)) != list) {
+        while ((le = list_next(le)) != list) {//遍历所有进程号
             proc = le2proc(le, list_link);
-            if (proc->pid == last_pid) {
-                if (++ last_pid >= next_safe) {
-                    if (last_pid >= MAX_PID) {
+            if (proc->pid == last_pid) {//此last_pid已经被占用
+                if (++ last_pid >= next_safe) {//将last_pid++， 若超过安全值
+                    if (last_pid >= MAX_PID) {//尝试超过max
                         last_pid = 1;
                     }
                     next_safe = MAX_PID;
-                    goto repeat;
+                    goto repeat;//重新遍历选择另一段安全值
                 }
+                //未超过安全值 则继续
             }
-            else if (proc->pid > last_pid && next_safe > proc->pid) {
+            else if (proc->pid > last_pid && next_safe > proc->pid) {//此pid介于尝试的和下一安全值之间，则说明安全值不安全
                 next_safe = proc->pid;
             }
         }
