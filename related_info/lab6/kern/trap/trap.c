@@ -15,6 +15,7 @@
 #include <error.h>
 #include <sched.h>
 #include <sync.h>
+#include <proc.h>
 
 #define TICK_NUM 100
 
@@ -41,32 +42,7 @@ static struct pseudodesc idt_pd = {
 /* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
 void
 idt_init(void) {
-
-    extern uintptr_t __vectors[];
-    int i;
-    for (i = 0; i < sizeof(idt) / sizeof(struct gatedesc); i ++) {
-        SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
-    }
-    SETGATE(idt[T_SYSCALL], 1, GD_KTEXT, __vectors[T_SYSCALL], DPL_USER);
-    lidt(&idt_pd);
-	return;
-/*
-	extern uintptr_t __vectors[];
-	int i;
-	for(i = 0; i < 256; i++)
-	{
-		if(i < IRQ_OFFSET)//32个陷阱门处理异常
-		{
-			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],0);
-		}
-		else
-		{
-			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 0);
-		}
-	}
-	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],3);
-	lidt(&idt_pd);
-      LAB1 YOUR CODE : STEP 2 */
+     /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
       *     All ISR's entry addrs are stored in __vectors. where is uintptr_t __vectors[] ?
       *     __vectors[] is in kern/trap/vector.S which is produced by tools/vector.c
@@ -81,6 +57,13 @@ idt_init(void) {
      /* LAB5 YOUR CODE */ 
      //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
      //so you should setup the syscall interrupt gate in here
+    extern uintptr_t __vectors[];
+    int i;
+    for (i = 0; i < sizeof(idt) / sizeof(struct gatedesc); i ++) {
+        SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
+    }
+    SETGATE(idt[T_SYSCALL], 1, GD_KTEXT, __vectors[T_SYSCALL], DPL_USER);
+    lidt(&idt_pd);
 }
 
 static const char *
@@ -206,7 +189,6 @@ pgfault_handler(struct trapframe *tf) {
 
 static volatile int in_swap_tick_event = 0;
 extern struct mm_struct *check_mm_struct;
-struct trapframe switchk2u, *switchu2k;
 
 static void
 trap_dispatch(struct trapframe *tf) {
@@ -235,14 +217,8 @@ trap_dispatch(struct trapframe *tf) {
         syscall();
         break;
     case IRQ_OFFSET + IRQ_TIMER:
-	ticks ++;
-    	if(ticks % TICK_NUM == 0)
-    	{
-            current->need_resched = 1;
-    		//print_ticks();
-    	}
 #if 0
-    LAB3 : If some page replacement algorithm(such as CLOCK PRA) need tick to change the priority of pages,
+    LAB3 : If some page replacement algorithm(such as CLOCK PRA) need tick to change the priority of pages, 
     then you can add code here. 
 #endif
         /* LAB1 YOUR CODE : STEP 3 */
@@ -255,7 +231,8 @@ trap_dispatch(struct trapframe *tf) {
         /* you should upate you lab1 code (just add ONE or TWO lines of code):
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
-  
+        ticks ++;
+        assert(current != NULL);
         break;
     case IRQ_OFFSET + IRQ_COM1:
         c = cons_getc();
@@ -266,9 +243,10 @@ trap_dispatch(struct trapframe *tf) {
         cprintf("kbd [%03d] %c\n", c, c);
         break;
     //LAB1 CHALLENGE 1 : YOUR CODE you should modify below codes.
-	case T_SWITCH_TOU:
-	case T_SWITCH_TOK:
-	break;
+    case T_SWITCH_TOU:
+    case T_SWITCH_TOK:
+        panic("T_SWITCH_** ??\n");
+        break;
     case IRQ_OFFSET + IRQ_IDE1:
     case IRQ_OFFSET + IRQ_IDE2:
         /* do nothing */

@@ -103,20 +103,26 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
-    proc->state = PROC_UNINIT;
-    proc->pid = -1;
-    proc->runs = 0;
-    proc->kstack = 0;
-    proc->need_resched = 0;
-    proc->parent = NULL;
-    proc->mm = NULL;
-    memset(&(proc->context),0,sizeof(proc->context));
-    proc->tf = NULL;
-    proc->cr3 = boot_cr3;
-    proc->flags = 0;
-    memset(proc->name,0,sizeof(char)*(PROC_NAME_LEN));
+        proc->state = PROC_UNINIT;
+        proc->pid = -1;
+        proc->runs = 0;
+        proc->kstack = 0;
+        proc->need_resched = 0;
+        proc->parent = NULL;
+        proc->mm = NULL;
+        memset(&(proc->context), 0, sizeof(struct context));
+        proc->tf = NULL;
+        proc->cr3 = boot_cr3;
+        proc->flags = 0;
+        memset(proc->name, 0, PROC_NAME_LEN);
         proc->wait_state = 0;
         proc->cptr = proc->optr = proc->yptr = NULL;
+        proc->rq = NULL;
+        proc->run_link.prev = proc->run_link.next = NULL;
+        proc->time_slice = 0;
+        proc->lab6_run_pool.left = proc->lab6_run_pool.right = proc->lab6_run_pool.parent = NULL;
+        proc->lab6_stride = 0;
+        proc->lab6_priority = 0;
     }
     return proc;
 }
@@ -397,41 +403,40 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
      */
 
     //    1. call alloc_proc to allocate a proc_struct
-    if((proc = alloc_proc()) == NULL)
-    	goto fork_out;
-    proc->parent = current;
     //    2. call setup_kstack to allocate a kernel stack for child process
-    if(setup_kstack(proc) != 0)
-    		goto bad_fork_cleanup_kstack;
     //    3. call copy_mm to dup OR share mm according clone_flag
-    copy_mm(clone_flags,proc);
     //    4. call copy_thread to setup tf & context in proc_struct
-	copy_thread(proc,stack,tf);
     //    5. insert proc_struct into hash_list && proc_list
+    //    6. call wakup_proc to make the new child process RUNNABLE
+    //    7. set ret vaule using child proc's pid
+    if ((proc = alloc_proc()) == NULL) {
+        goto fork_out;
+    }
+
+    proc->parent = current;
+    assert(current->wait_state == 0);
+
+    if (setup_kstack(proc) != 0) {
+        goto bad_fork_cleanup_proc;
+    }
+    if (copy_mm(clone_flags, proc) != 0) {
+        goto bad_fork_cleanup_kstack;
+    }
+    copy_thread(proc, stack, tf);
 
     bool intr_flag;
     local_intr_save(intr_flag);
     {
-	proc->pid = get_pid(); // get_pid需要在hash之前，是根据pid值进行hash的
-	hash_proc(proc);
+        proc->pid = get_pid();
+        hash_proc(proc);
         set_links(proc);
+
     }
     local_intr_restore(intr_flag);
-//    list_add(&proc_list, &(proc->list_link));
-//    nr_process ++;
-    //    6. call wakup_proc to make the new child process RUNNABLE
-	wakeup_proc(proc);
-    //    7. set ret vaule using child proc's pid
-	ret = proc->pid;
 
-	//LAB5 YOUR CODE : (update LAB4 steps)
-   /* Some Functions
-    *    set_links:  set the relation links of process.  ALSO SEE: remove_links:  lean the relation links of process 
-    *    -------------------
-	*    update step 1: set child proc's parent to current process, make sure current process's wait_state is 0
-	*    update step 5: insert proc_struct into hash_list && proc_list, set the relation links of process
-    */
-	
+    wakeup_proc(proc);
+
+    ret = proc->pid;
 fork_out:
     return ret;
 
@@ -561,17 +566,15 @@ load_icode(unsigned char *binary, size_t size) {
         ret = -E_NO_MEM;
 
      //(3.6) alloc memory, and  copy the contents of every program section (from, from+end) to process's memory (la, la+end)
-        end = ph->p_va + ph->p_filesz;//程序结束处虚地址
+        end = ph->p_va + ph->p_filesz;
      //(3.6.1) copy TEXT/DATA section of bianry program
         while (start < end) {
-            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {//分配一个新的页
+            if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
                 goto bad_cleanup_mmap;
             }
-            off = start - la, //off是起始的页内偏移
-            size = PGSIZE - off, //size是页剩余（碎片1）
-			la += PGSIZE;//下一页的起始虚地址
-            if (end < la) {//程序能够容纳在这一页内
-                size -= la - end;//页剩余添加（碎片2）
+            off = start - la, size = PGSIZE - off, la += PGSIZE;
+            if (end < la) {
+                size -= la - end;
             }
             memcpy(page2kva(page) + off, from, size);
             start += size, from += size;
@@ -603,9 +606,7 @@ load_icode(unsigned char *binary, size_t size) {
             memset(page2kva(page) + off, 0, size);
             start += size;
         }
-    }//对每个程序操作完成
-
-
+    }
     //(4) build user stack memory
     vm_flags = VM_READ | VM_WRITE | VM_STACK;
     if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
@@ -619,7 +620,7 @@ load_icode(unsigned char *binary, size_t size) {
     //(5) set current process's mm, sr3, and set CR3 reg = physical addr of Page Directory
     mm_count_inc(mm);
     current->mm = mm;
-    current->cr3 = PADDR(mm->pgdir);//内核页目录表
+    current->cr3 = PADDR(mm->pgdir);
     lcr3(PADDR(mm->pgdir));
 
     //(6) setup trapframe for user environment
@@ -839,7 +840,8 @@ init_main(void *arg) {
     assert(nr_process == 2);
     assert(list_next(&proc_list) == &(initproc->list_link));
     assert(list_prev(&proc_list) == &(initproc->list_link));
-
+    assert(nr_free_pages_store == nr_free_pages());
+    assert(kernel_allocated_store == kallocated());
     cprintf("init check memory pass.\n");
     return 0;
 }
@@ -890,3 +892,11 @@ cpu_idle(void) {
     }
 }
 
+//FOR LAB6, set the process's priority (bigger value will get more CPU time) 
+void
+lab6_set_priority(uint32_t priority)
+{
+    if (priority == 0)
+        current->lab6_priority = 1;
+    else current->lab6_priority = priority;
+}

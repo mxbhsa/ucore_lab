@@ -257,6 +257,8 @@ check_vmm(void) {
     check_vma_struct();
     check_pgfault();
 
+ //   assert(nr_free_pages_store == nr_free_pages());
+
     cprintf("check_vmm() succeeded.\n");
 }
 
@@ -316,6 +318,8 @@ check_vma_struct(void) {
     }
 
     mm_destroy(mm);
+
+//    assert(nr_free_pages_store == nr_free_pages());
 
     cprintf("check_vma_struct() succeeded!\n");
 }
@@ -470,15 +474,6 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *    page_insert ： build the map of phy addr of an Page with the linear addr la
     *    swap_map_swappable ： set the page swappable
     */
-    /*
-     * LAB5 CHALLENGE ( the implmentation Copy on Write)
-		There are 2 situlations when code comes here.
-		  1) *ptep & PTE_P == 1, it means one process try to write a readonly page. 
-		     If the vma includes this addr is writable, then we can set the page writable by rewrite the *ptep.
-		     This method could be used to implement the Copy on Write (COW) thchnology(a fast fork process method).
-		  2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
-		     We should add the LAB3's results here.
-     */
         if(swap_init_ok) {
             struct Page *page=NULL;
                                     //(1）According to the mm AND addr, try to load the content of right disk page
@@ -493,17 +488,19 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
         }
    }
 #endif
-
-    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针 mm为某个进程的页表
-    if(ptep == NULL)
-    	goto failed;
-
-    if(*ptep == 0)//页表项为空，未分配页，不需替换
-    {
-    	if(pgdir_alloc_page(mm->pgdir, addr, perm) == NULL)
-    		goto failed;
+    // try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
+    // (notice the 3th parameter '1')
+    if ((ptep = get_pte(mm->pgdir, addr, 1)) == NULL) {
+        cprintf("get_pte in do_pgfault failed\n");
+        goto failed;
     }
-
+    
+    if (*ptep == 0) { // if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
+        if (pgdir_alloc_page(mm->pgdir, addr, perm) == NULL) {
+            cprintf("pgdir_alloc_page in do_pgfault failed\n");
+            goto failed;
+        }
+    }
     else {
         struct Page *page=NULL;
         cprintf("do pgfault: ptep %x, pte %x\n",ptep, *ptep);
@@ -531,27 +528,9 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
        page_insert(mm->pgdir, page, addr, perm);
        swap_map_swappable(mm, addr, page, 1);
    }
-    /*
-    else {//有页表
-            struct Page *page = NULL;
-        if(swap_init_ok) {//页替换工作完成
-            if ((swap_in(mm, addr, &page)) != 0) //将addr所在页从磁盘读至内存page中
-                goto failed;
-            page_insert(mm->pgdir, page, addr, perm);//完善page和addr的页表项
-            swap_map_swappable(mm, addr, page, 1); //设置替换相关（FIFO：加入替换链表）
-        }
-        else {
-            cprintf("no swap_init_ok but ptep is %x, failed22\n",*ptep);
-            goto failed;
-        }
-
-       page_insert(mm->pgdir, page, addr, perm);
-       swap_map_swappable(mm, addr, page, 1);
-    }*/
    ret = 0;
 failed:
     return ret;
-
 }
 
 bool
