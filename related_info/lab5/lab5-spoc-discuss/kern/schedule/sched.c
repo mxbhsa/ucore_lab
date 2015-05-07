@@ -12,7 +12,6 @@ wakeup_proc(struct proc_struct *proc) {
     {
         if (proc->state != PROC_RUNNABLE) {
             proc->state = PROC_RUNNABLE;
-            cprintf("***** %s 进程就绪\n",proc->name);
             proc->wait_state = 0;
         }
         else {
@@ -24,8 +23,6 @@ wakeup_proc(struct proc_struct *proc) {
 
 void
 schedule(void) {
-	cprintf("***** schedule\n");
-
     bool intr_flag;
     list_entry_t *le, *last;
     struct proc_struct *next = NULL;
@@ -38,18 +35,15 @@ schedule(void) {
             if ((le = list_next(le)) != &proc_list) {
                 next = le2proc(le, list_link);
                 if (next->state == PROC_RUNNABLE) {
-                	//cprintf("***** switch from %s to %s\n",current->name,next->name);
                     break;
                 }
             }
         } while (le != last);
-
         if (next == NULL || next->state != PROC_RUNNABLE) {
             next = idleproc;
         }
         next->runs ++;
         if (next != current) {
-        	cprintf("***** switch from %s to %s 进程运行\n",current->name,next->name);
             proc_run(next);
         }
     }

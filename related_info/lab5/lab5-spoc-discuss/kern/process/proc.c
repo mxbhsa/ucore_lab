@@ -211,7 +211,6 @@ proc_run(struct proc_struct *proc) {
             current = proc;
             load_esp0(next->kstack + KSTACKSIZE);
             lcr3(next->cr3);
-            cprintf("上下文转换至%s \n",next->name);
             switch_to(&(prev->context), &(next->context));
         }
         local_intr_restore(intr_flag);
@@ -223,24 +222,7 @@ proc_run(struct proc_struct *proc) {
 //       after switch_to, the current proc will execute here.
 static void
 forkret(void) {
-    int cs;
-    asm volatile(
-                 " xor %%eax, %%eax\n"
-                 "mov %%cs, %%eax\n"
-                 :"=a"(cs)
-                 :
-                 :
-                 );
-   cprintf("\t\t$$$$$$$$$$$$$$$$$$$ ret之前cs是:0x%08x\n", cs);
     forkrets(current->tf);
-    asm volatile(
-                 " xor %%eax, %%eax\n"
-                 "mov %%cs, %%eax\n"
-                 :"=a"(cs)
-                 :
-                 :
-                 );
-   cprintf("\t\t$$$$$$$$$$$$ ret之后cs是:0x%08x\n", cs);
 }
 
 // hash_proc - add proc into proc hash_list
@@ -435,21 +417,20 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         goto bad_fork_cleanup_kstack;
     }
     copy_thread(proc, stack, tf);
-    cprintf("\tcopy thread over\n");
+
     bool intr_flag;
     local_intr_save(intr_flag);
     {
         proc->pid = get_pid();
         hash_proc(proc);
         set_links(proc);
+
     }
     local_intr_restore(intr_flag);
 
     wakeup_proc(proc);
 
     ret = proc->pid;
-
-	cprintf("\t#### new proc is allocaed 进程创建\n");
 fork_out:
     return ret;
 
@@ -474,26 +455,24 @@ do_exit(int error_code) {
     }
     
     struct mm_struct *mm = current->mm;
-    if (mm != NULL) {//是一个用户进程
+    if (mm != NULL) {
         lcr3(boot_cr3);
         if (mm_count_dec(mm) == 0) {
             exit_mmap(mm);
             put_pgdir(mm);
             mm_destroy(mm);
-        	cprintf("##### 资源回收完成\n");
         }
         current->mm = NULL;
     }
     current->state = PROC_ZOMBIE;
-    cprintf("***** %s 进程退出\n", current->name);
     current->exit_code = error_code;
-
+    
     bool intr_flag;
     struct proc_struct *proc;
     local_intr_save(intr_flag);
     {
         proc = current->parent;
-        if (proc->wait_state == WT_CHILD) {//唤醒父进程回收资源
+        if (proc->wait_state == WT_CHILD) {
             wakeup_proc(proc);
         }
         while (current->cptr != NULL) {
@@ -637,6 +616,7 @@ load_icode(unsigned char *binary, size_t size) {
     current->mm = mm;
     current->cr3 = PADDR(mm->pgdir);
     lcr3(PADDR(mm->pgdir));
+
     //(6) setup trapframe for user environment
     struct trapframe *tf = current->tf;
     memset(tf, 0, sizeof(struct trapframe));
@@ -696,7 +676,6 @@ do_execve(const char *name, size_t len, unsigned char *binary, size_t size) {
     if ((ret = load_icode(binary, size)) != 0) {
         goto execve_exit;
     }
-	cprintf("##### load_icode to stack finish 进程就绪\n");
     set_proc_name(current, local_name);
     return 0;
 
@@ -749,7 +728,6 @@ repeat:
     if (haskid) {
         current->state = PROC_SLEEPING;
         current->wait_state = WT_CHILD;
-    	cprintf("##### 父进程%s找到未结束子进程 进入等待\n",current->name);
         schedule();
         if (current->flags & PF_EXITING) {
             do_exit(-E_KILLED);
@@ -773,7 +751,6 @@ found:
     local_intr_restore(intr_flag);
     put_kstack(proc);
     kfree(proc);
-	cprintf("##### 父进程%s找到僵尸子进程 进行回收\n",current->name);
     return 0;
 }
 
@@ -832,16 +809,6 @@ user_main(void *arg) {
 #ifdef TEST
     KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
 #else
-    KERNEL_EXECVE(hello);
-#endif
-    panic("user_main execve failed.\n");
-}
-// user_main - kernel thread used to exec a user program
-static int
-user_main2(void *arg) {
-#ifdef TEST
-    KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
-#else
     KERNEL_EXECVE(exit);
 #endif
     panic("user_main execve failed.\n");
@@ -852,16 +819,13 @@ static int
 init_main(void *arg) {
     size_t nr_free_pages_store = nr_free_pages();
     size_t kernel_allocated_store = kallocated();
-    cprintf("\t##### start to create user main progress\n");
+
     int pid = kernel_thread(user_main, NULL, 0);
-    int pid2 = kernel_thread(user_main2, NULL, 0);
-    cprintf("\t##### user_main is loaded and start to schedule\n");
-    if (pid <= 0 || pid2 <= 0) {
+    if (pid <= 0) {
         panic("create user_main failed.\n");
     }
 
     while (do_wait(0, NULL) == 0) {
-    	cprintf("\tdo wait\n");
         schedule();
     }
 

@@ -33,7 +33,6 @@ kern_init(void) {
     intr_enable();              // enable irq interrupt
 
 	schedule();   //let init proc run
-	cprintf("--------------\n");
 	while (do_wait(1, NULL) == 0) {
         schedule();
     }

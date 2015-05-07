@@ -41,7 +41,6 @@ static struct pseudodesc idt_pd = {
 /* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
 void
 idt_init(void) {
-
     extern uintptr_t __vectors[];
     int i;
     for (i = 0; i < sizeof(idt) / sizeof(struct gatedesc); i ++) {

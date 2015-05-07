@@ -353,7 +353,7 @@ check_pgfault(void) {
     assert(sum == 0);
 
     page_remove(pgdir, ROUNDDOWN(addr, PGSIZE));
-    free_page(pa2page(pgdir[0]));
+    free_page(pde2page(pgdir[0]));
     pgdir[0] = 0;
 
     mm->pgdir = NULL;
@@ -493,6 +493,60 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
         }
    }
 #endif
+    ptep = get_pte(mm->pgdir, addr, 1); //获得addr的对应页表项指针 mm为某个进程的页表
+    if(ptep == NULL)
+    	goto failed;
+
+    if(*ptep == 0)//页表项为空，未分配页，不需替换
+    {
+    	if(pgdir_alloc_page(mm->pgdir, addr, perm) == NULL)
+    		goto failed;
+    }
+
+    else {
+        struct Page *page=NULL;
+        cprintf("do pgfault: ptep %x, pte %x\n",ptep, *ptep);
+        if (*ptep & PTE_P) {
+            //if process write to this existed readonly page (PTE_P means existed), then should be here now.
+            //we can implement the delayed memory space copy for fork child process (AKA copy on write, COW).
+            //we didn't implement now, we will do it in future.
+            panic("error write a non-writable pte");
+            //page = pte2page(*ptep);
+        } else{
+           // if this pte is a swap entry, then load data from disk to a page with phy addr
+           // and call page_insert to map the phy addr with logical addr
+           if(swap_init_ok) {               
+               if ((ret = swap_in(mm, addr, &page)) != 0) {
+                   cprintf("swap_in in do_pgfault failed\n");
+                   goto failed;
+               }    
+
+           }  
+           else {
+            cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
+            goto failed;
+           }
+       } 
+       page_insert(mm->pgdir, page, addr, perm);
+       swap_map_swappable(mm, addr, page, 1);
+   }
+    /*
+    else {//有页表
+            struct Page *page = NULL;
+        if(swap_init_ok) {//页替换工作完成
+            if ((swap_in(mm, addr, &page)) != 0) //将addr所在页从磁盘读至内存page中
+                goto failed;
+            page_insert(mm->pgdir, page, addr, perm);//完善page和addr的页表项
+            swap_map_swappable(mm, addr, page, 1); //设置替换相关（FIFO：加入替换链表）
+        }
+        else {
+            cprintf("no swap_init_ok but ptep is %x, failed22\n",*ptep);
+            goto failed;
+        }
+
+       page_insert(mm->pgdir, page, addr, perm);
+       swap_map_swappable(mm, addr, page, 1);
+    }*/
    ret = 0;
 failed:
     return ret;

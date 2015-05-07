@@ -133,4 +133,3 @@ kernel panic at kern/process/proc.c:455:
 
 Welcome to the kernel debug monitor!!
 Type 'help' for a list of commands.
-K> 

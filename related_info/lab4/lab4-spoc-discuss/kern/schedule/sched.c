@@ -6,27 +6,24 @@
 
 void
 wakeup_proc(struct proc_struct *proc) {
-	//cprintf("state %s\n",proc->state);
-   // assert(proc->state != PROC_ZOMBIE && proc->state != PROC_RUNNABLE);
+    assert(proc->state != PROC_ZOMBIE && proc->state != PROC_RUNNABLE);
     proc->state = PROC_RUNNABLE;
 }
 
 void
 schedule(void) {
-	cprintf("sssssssssssssssssssssssssssssssssssssssssssssssssss\n");
     bool intr_flag;
     list_entry_t *le, *last;
     struct proc_struct *next = NULL;
     local_intr_save(intr_flag);
     {
         current->need_resched = 0;
-        last = (current == idleproc) ? &proc_list : &(current->list_link); //选当前
+        last = (current == idleproc) ? &proc_list : &(current->list_link);
         le = last;
         do {
             if ((le = list_next(le)) != &proc_list) {
                 next = le2proc(le, list_link);
                 if (next->state == PROC_RUNNABLE) {
-                	cprintf("proc_switch:: Switch  thread %s to %s\n",(le2proc(last,list_link))->name, next->name);
                     break;
                 }
             }

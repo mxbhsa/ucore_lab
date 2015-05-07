@@ -32,7 +32,6 @@ sys_exec(uint32_t arg[]) {
     size_t len = (size_t)arg[1];
     unsigned char *binary = (unsigned char *)arg[2];
     size_t size = (size_t)arg[3];
-    cprintf("\t start execute user program %s\n",name);
     return do_execve(name, len, binary, size);
 }
 
@@ -86,7 +85,6 @@ syscall(void) {
     int num = tf->tf_regs.reg_eax;
     if (num >= 0 && num < NUM_SYSCALLS) {
         if (syscalls[num] != NULL) {
-            //cprintf("syscallllllllllllllllllllllll %d\n",num);
             arg[0] = tf->tf_regs.reg_edx;
             arg[1] = tf->tf_regs.reg_ecx;
             arg[2] = tf->tf_regs.reg_ebx;

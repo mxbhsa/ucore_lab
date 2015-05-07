@@ -66,7 +66,6 @@ struct proc_struct *idleproc = NULL;
 // init procs
 struct proc_struct *initproc1 = NULL;
 struct proc_struct *initproc2 = NULL;
-struct proc_struct *initproc3 = NULL;
 // current proc
 struct proc_struct *current = NULL;
 
@@ -367,10 +366,8 @@ do_exit(int error_code) {
     local_intr_save(intr_flag);
     {
         proc = current->parent;
-        cprintf("%s ssss\n",proc->name);
         if (proc->wait_state == WT_CHILD) {
             wakeup_proc(proc);
-            cprintf("eeeeeee\n");
         }
 	}
     local_intr_restore(intr_flag);
@@ -406,27 +403,22 @@ proc_init(void) {
     idleproc->kstack = (uintptr_t)bootstack;
     idleproc->need_resched = 1;
     set_proc_name(idleproc, "idle");
-    list_add_before(&proc_list, &idleproc->list_link);
     nr_process ++;
 
     current = idleproc;
 
     int pid1= kernel_thread(init_main, "init main1: Hello world!!", 0);
     int pid2= kernel_thread(init_main, "init main2: Hello world!!", 0);
-    int pid3= kernel_thread(init_main, "init main3: Hello world!!", 0);
-    if (pid1 <= 0 || pid2<=0 || pid3 <=  0) {
-        panic("create kernel thread init_main1 or 2 or 3 failed.\n");
+    if (pid1 <= 0 || pid2<=0) {
+        panic("create kernel thread init_main1 or 2 failed.\n");
     }
 
     initproc1 = find_proc(pid1);
 	initproc2 = find_proc(pid2);
-	initproc3 = find_proc(pid3);
     set_proc_name(initproc1, "init1");
 	set_proc_name(initproc2, "init2");
-	set_proc_name(initproc3, "init3");
     cprintf("proc_init:: Created kernel thread init_main--> pid: %d, name: %s\n",initproc1->pid, initproc1->name);
 	cprintf("proc_init:: Created kernel thread init_main--> pid: %d, name: %s\n",initproc2->pid, initproc2->name);
-	cprintf("proc_init:: Created kernel thread init_main--> pid: %d, name: %s\n",initproc3->pid, initproc3->name);
     assert(idleproc != NULL && idleproc->pid == 0);
 }
 
