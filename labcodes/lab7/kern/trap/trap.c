@@ -235,12 +235,7 @@ trap_dispatch(struct trapframe *tf) {
         break;
     case IRQ_OFFSET + IRQ_TIMER:
 	ticks ++;
-	if(ticks % TICK_NUM == 0)
-	    	{
-		run_timer_list();
-	            //current->need_resched = 1;
-	    		//print_ticks();
-	    	}
+	run_timer_list();
 	//sched_class_proc_tick(current);
     	/*if(ticks % TICK_NUM == 0)
     	{
