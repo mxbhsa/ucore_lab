@@ -37,6 +37,13 @@ cond_signal (condvar_t *cvp) {
    *          }
    *       }
    */
+   if(cvp->count > 0)//有进程在等待
+   {
+		cvp->owner->next_count ++; //
+		up(&(cvp->sem));//使等待的进程唤醒 进入ready队列
+		down(&(cvp->owner->next));//
+		cvp->owner->next_count --;
+   }
    cprintf("cond_signal end: cvp %x, cvp->count %d, cvp->owner->next_count %d\n", cvp, cvp->count, cvp->owner->next_count);
 }
 
@@ -55,5 +62,12 @@ cond_wait (condvar_t *cvp) {
     *         wait(cv.sem);
     *         cv.count --;
     */
+    cvp->count ++;//增加一个等待进程
+    if(cvp->owner->next_count > 0)//如果有进程在等待此互斥量
+    	up(&(cvp->owner->next));//唤醒
+    else
+    	up(&(cvp->owner->mutex));
+    down(&(cvp->sem));
+    cvp->count --;
     cprintf("cond_wait end:  cvp %x, cvp->count %d, cvp->owner->next_count %d\n", cvp, cvp->count, cvp->owner->next_count);
 }

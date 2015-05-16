@@ -113,7 +113,7 @@ default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
     for (; p != base + n; p ++) {
-        assert(!PageReserved(p) );
+        assert(!PageReserved(p));
         p->flags = 0;
         set_page_ref(p, 0);
     }
