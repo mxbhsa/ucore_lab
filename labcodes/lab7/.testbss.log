@@ -117,7 +117,34 @@ I am No.0 philosopher_sema
 Iter 1, No.0 philosopher_sema is thinking
 kernel_execve: pid = 2, name = "testbss".
 Making sure bss works right...
-Yes, good.  Now doing a wild write off the end...
+YesIter 1, No.0 philosopher_sema is eating
+Iter 1, No.2 philosopher_sema is eating
+phi_test_condvar: state_condvar[0] will eating
+phi_test_condvar: signal self_cv[0] 
+cond_signal begin: cvp c03a7688, cvp->count 0, cvp->owner->next_count 0
+cond_signal end: cvp c03a7688, cvp->count 0, cvp->owner->next_count 0
+Iter 1, No.0 philosopher_condvar is eating
+phi_take_forks_condvar: 1 didn't get fork and will wait
+cond_wait begin:  cvp c03a769c, cvp->count 0, cvp->owner->next_count 0
+phi_test_condvar: state_condvar[2] will eating
+phi_test_condvar: signal self_cv[2] 
+cond_signal begin: cvp c03a76b0, cvp->count 0, cvp->owner->next_count 0
+cond_signal end: cvp c03a76b0, cvp->count 0, cvp->owner->next_count 0
+Iter 1, No.2 philosopher_condvar is eating
+phi_take_forks_condvar: 3 didn't get fork and will wait
+cond_wait begin:  cvp c03a76c4, cvp->count 0, cvp->owner->next_count 0
+phi_take_forks_condvar: 4 didn't get fork and will wait
+cond_wait begin:  cvp c03a76d8, cvp->count 0, cvp->owner->next_count 0
+Iter 2, No.0 philosopher_sema is thinking
+phi_test_condvar: state_condvar[4] will eating
+phi_test_condvar: signal self_cv[4] 
+cond_signal begin: cvp c03a76d8, cvp->count 1, cvp->owner->next_count 0
+cond_wait end:  cvp c03a76d8, cvp->count 0, cvp->owner->next_count 1
+Iter 1, No.4 philosopher_condvar is eating
+Iter 1, No.4 philosopher_sema is eating
+Iter 2, No.2 philosopher_sema is thinking
+Iter 1, No.1 philosopher_sema is eating
+, good.  Now doing a wild write off the end...
 testbss may pass.
 not valid addr c03020, and  can not find it in vma
 trapframe at 0xc03b0fb4
