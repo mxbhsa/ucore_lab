@@ -42,6 +42,30 @@ static struct pseudodesc idt_pd = {
 /* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S */
 void
 idt_init(void) {
+    extern uintptr_t __vectors[];
+    int i;
+    for (i = 0; i < sizeof(idt) / sizeof(struct gatedesc); i ++) {
+        SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
+    }
+    SETGATE(idt[T_SYSCALL], 1, GD_KTEXT, __vectors[T_SYSCALL], DPL_USER);
+    lidt(&idt_pd);
+	return;
+/*
+	extern uintptr_t __vectors[];
+	int i;
+	for(i = 0; i < 256; i++)
+	{
+		if(i < IRQ_OFFSET)//32个陷阱门处理异常
+		{
+			SETGATE(idt[i], 1, GD_KTEXT, __vectors[i],0);
+		}
+		else
+		{
+			SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], 0);
+		}
+	}
+	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],3);
+	lidt(&idt_pd);
      /* LAB1 YOUR CODE : STEP 2 */
      /* (1) Where are the entry addrs of each Interrupt Service Routine (ISR)?
       *     All ISR's entry addrs are stored in __vectors. where is uintptr_t __vectors[] ?
@@ -210,6 +234,8 @@ trap_dispatch(struct trapframe *tf) {
         syscall();
         break;
     case IRQ_OFFSET + IRQ_TIMER:
+	ticks ++;
+	run_timer_list();
 #if 0
     LAB3 : If some page replacement algorithm(such as CLOCK PRA) need tick to change the priority of pages,
     then you can add code here. 
